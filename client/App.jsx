@@ -2,10 +2,19 @@ import React, { useState, useEffect } from "react";
 
 const App = () => {
     const [balance, setBalance] = useState([]);
+    const [customVal, setCustomVal] = useState(0);
+    const [newPayer, setNewPayer] = useState("");
+    const [newPoints, setNewPoints] = useState(0);
+
+    const handleCustomVal = (e) => setCustomVal(e.target.value);
+    const handleNewPayer = (e) => setNewPayer(e.target.value);
+    const handleNewPoints = (e) => setNewPoints(e.target.value);
 
     useEffect(() => {
       refreshBalance();
     }, []);
+
+
 
     const refreshBalance = () => {
       fetch('http://localhost:3000/mysql/fetch/')
@@ -20,34 +29,21 @@ const App = () => {
     }
 
     const balanceSum = (total) => {
-      let dannonPoints = 0;
-      let millercoorsPoints = 0;
-      let unveilerPoints = 0;
-
+      let totalPoints = {};
       total.forEach((item) => {
-        if (item.payer == 'DANNON') {
-          dannonPoints += item.points;
-        } else if (item.payer == 'MILLER COORS') {
-          millercoorsPoints += item.points;
-        } else if (item.payer == 'UNVEILER') {
-          unveilerPoints += item.points;
-        }
+        totalPoints[item.payer] = 0;
       })
 
-      /*console.log(dannonPoints);
-      console.log(millercoorsPoints);
-      console.log(unveilerPoints);*/
+      total.forEach((item) => {
+        totalPoints[item.payer] += item.points;
+      })
 
-      let totalPoints = {
-        "DANNON": dannonPoints,
-        "UNILEVER": unveilerPoints,
-        "MILLER COORS": millercoorsPoints
-      };
-      
+      //console.log(JSON.stringify(totalPoints));
+
       setBalance(totalPoints);
     }
 
-    const spendPoints = (cost = 5000) => {
+    const spendPoints = (cost) => {
       fetch('http://localhost:3000/mysql/fetch/')
       .then(response => {
         console.log(response);
@@ -56,7 +52,7 @@ const App = () => {
       .then(total => {
         let realBalance = reorderBalance(total);
         //console.log(JSON.stringify(realBalance[0]));
-        handlePayment(realBalance);
+        handlePayment(realBalance, cost);
       });
     }
 
@@ -100,7 +96,7 @@ const App = () => {
             if ((total[x].points + negativeArr[n].points) > 0) {
               total[x].points = total[x].points + negativeArr[n].points;
               negativeArr[n].points = 0;
-            } else if ((total[x].points + negativeArr[n].points) < 0) {
+            } else if ((total[x].points + negativeArr[n].points) <= 0) {
               negativeArr[n].points = total[x].points + negativeArr[n].points;
               total[x].points = 0;
             }
@@ -111,8 +107,8 @@ const App = () => {
       return total;
     }
 
-    const handlePayment = (rb) => {
-      let fee = 5000;
+    const handlePayment = (rb, fee) => {
+      //let fee = 5000;
       let overdraftCheck = 0;
       let k = 0;
       for (k; k<rb.length; k++) {
@@ -141,7 +137,7 @@ const App = () => {
             }
             paidPoints.push(pointNeg);
             fee = 0;
-          } else if ((rb[x].points - fee) < 0) {
+          } else if ((rb[x].points - fee) <= 0) {
             fee = fee - rb[x].points;
             let pointNeg = {
               payer: rb[x].payer,
@@ -180,11 +176,20 @@ const App = () => {
           })
     }
 
-    /*Idea for item 3:
-    1) Have a two function process for the current points system - one for the current balance's subtraction, and one for the points just spent.
-    2) The first function would prepare the available points by subtracting the points already used. The available point array would be passed to the next function.
-    3) The spend function would subtract from the point total until it is reduced to zero
-    4) Only the final function needs an overdraft check to prevent too many points being spent*/
+    const defaultPay = () => {
+      spendPoints(5000);
+    }
+
+    const customPay = () => {
+      let copy = customVal;
+      spendPoints(copy);
+    } 
+
+    const addTransaction = () => {
+      let payCopy = newPayer;
+      let pointsCopy = newPoints;
+      postPoints({payer: payCopy, points: pointsCopy});
+    }
 
     return (
       <>
@@ -198,7 +203,16 @@ const App = () => {
         </div>
         <div className="d-flex">
           <p>Default Payment - 5000</p>
-          <button onClick={spendPoints}>Make Payment</button>
+          <button onClick={defaultPay}>Default Pay</button>
+        </div>
+        <div className="d-flex">
+        <input onChange={handleCustomVal} type="text" />
+        <button onClick={customPay}>Custom Pay</button>
+        </div>
+        <div className="d-flex">
+        <input onChange={handleNewPayer} type="text" />
+        <input onChange={handleNewPoints} type="text" />
+        <button onClick={addTransaction}>Add Transaction</button>
         </div>
       </>
     );
