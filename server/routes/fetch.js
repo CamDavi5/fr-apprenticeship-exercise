@@ -3,12 +3,12 @@ const router = express.Router();
 
 import db from '../db';
 
+//POST request that sends the payer, points, and a calculated timestamp to MySQL
 router.post("/", async (req, res) => {
     const body = req.body;
     let ts = new Date();
     let newTS = ts.toISOString();
     const sliceTS = newTS.slice(0, 19)+"Z";
-    //console.log(sliceTS);
 
     try {
         res.json(await db.Fetch.addTransaction(body.payer, body.points, sliceTS))
@@ -19,6 +19,7 @@ router.post("/", async (req, res) => {
 
 });
 
+//GET request that retrives all data from the MySQL table
 router.get("/", async (req, res) => {
     
     try {

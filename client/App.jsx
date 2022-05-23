@@ -10,12 +10,12 @@ const App = () => {
     const handleNewPayer = (e) => setNewPayer(e.target.value);
     const handleNewPoints = (e) => setNewPoints(e.target.value);
 
+    //Loads the intial balance of the MySQL database
     useEffect(() => {
       refreshBalance();
     }, []);
 
-
-
+    //Refreshes the displayed balance to reflect any changes after a payment or new transaction
     const refreshBalance = () => {
       fetch('http://localhost:3000/mysql/fetch/')
       .then(response => {
@@ -28,6 +28,7 @@ const App = () => {
       });
     }
 
+    //Sums the incoming MySQL information and sorts by the "payer"
     const balanceSum = (total) => {
       let totalPoints = {};
       total.forEach((item) => {
@@ -38,11 +39,10 @@ const App = () => {
         totalPoints[item.payer] += item.points;
       })
 
-      //console.log(JSON.stringify(totalPoints));
-
       setBalance(totalPoints);
     }
 
+    //Beginning of the payment method that fetches the MySQL data
     const spendPoints = (cost) => {
       fetch('http://localhost:3000/mysql/fetch/')
       .then(response => {
@@ -51,22 +51,21 @@ const App = () => {
       })
       .then(total => {
         let realBalance = reorderBalance(total);
-        //console.log(JSON.stringify(realBalance[0]));
         handlePayment(realBalance, cost);
       });
     }
 
+    //Sorts the data by date in ascending order and replaces negative/zero'd points with null
     const reorderBalance = (total) => {
       let i = 0;
-      for (i; i<total.length; i++) {
+      for (i; i<total.length; i++) { //Converts each timestamp to a number
         let tempTS = total[i].timestamp
         let convertTS = Date.parse(tempTS);
         total[i].timestamp = convertTS;
-        //console.log(convertTS);
       }
       
       let x = 1;
-      for(x; x<total.length; x++){ 
+      for(x; x<total.length; x++){ //Sorts the object array in ascending order using insertion sort
         let temp = total[x];    
         let w = x-1;
         while(w>=0 && total[w].timestamp>temp.timestamp){
@@ -79,7 +78,7 @@ const App = () => {
         }
 
       let negativeArr = [];
-      for(i=0; i<total.length; i++) {
+      for(i=0; i<total.length; i++) { //Removes objects with negative points and places them in a new array
         if (total[i].points < 0) {
           negativeArr.push(total[i]);
           total[i] = null;
@@ -87,7 +86,7 @@ const App = () => {
       }
       
       let n = 0;
-      for (n; n<negativeArr.length; n++) {
+      for (n; n<negativeArr.length; n++) { //The negative points are deducted from the positive points
         for (x=0; x<total.length; x++) {
           if (negativeArr[n].points == 0) {
             break;
@@ -104,28 +103,36 @@ const App = () => {
         }
       }
       
+      for (i=0; i<total.length; i++) { //Prevents payers with zero points from being calculated
+        if (total[i] != null) {
+          if (total[i].points == 0) {
+            total[i] = null;
+          }
+        }
+      }
+
       return total;
     }
 
+    //Payment system that creates an object array of the points deducted
     const handlePayment = (rb, fee) => {
-      //let fee = 5000;
       let overdraftCheck = 0;
       let k = 0;
-      for (k; k<rb.length; k++) {
+      for (k; k<rb.length; k++) { //Sums all of the points for a total
         if ((rb[k]) != null) {
           overdraftCheck += rb[k].points;
         }
       }
 
-      if (fee > overdraftCheck) {
-        console.log("You don't have enough points for this transaction!");
+      if (fee > overdraftCheck) { //Overdraft check
+        alert("You don't have enough points for this transaction!");
         return;
       }
       
       let paidPoints = [];
 
       let x = 0;
-      for (x; x<rb.length; x++) {
+      for (x; x<rb.length; x++) { //Subtraction loop that starts from the oldest points
         if (fee == 0) {
           break;
         }
@@ -149,13 +156,13 @@ const App = () => {
       }
 
       let j = 0;
-      for (j; j<paidPoints.length; j++) {
-        //console.log(JSON.stringify(paidPoints[j]));
+      for (j; j<paidPoints.length; j++) { //Sends negative points data to MySQL
         postPoints(paidPoints[j]);
       }
       
     }
 
+    //Sends the object parameter to MySQL
     const postPoints = (obj) => {
       fetch('http://localhost:3000/mysql/fetch', {
           method: "POST",
@@ -176,43 +183,82 @@ const App = () => {
           })
     }
 
+    //Default payment option 
     const defaultPay = () => {
       spendPoints(5000);
     }
 
+    //Custom payment option
     const customPay = () => {
       let copy = customVal;
-      spendPoints(copy);
+
+      let num = parseInt(copy);
+      if (isNaN(num) == false) { //Points check for valid int that is positive
+        if (num <= 0) {
+          alert("Please enter a number larger than 0!");
+          return;
+        }
+      } else {
+        alert("Please enter a number!");
+        return;
+      }
+      
+      spendPoints(num);
     } 
 
+    //Adds new transaction to the 
     const addTransaction = () => {
       let payCopy = newPayer;
       let pointsCopy = newPoints;
-      postPoints({payer: payCopy, points: pointsCopy});
+
+      if (payCopy == "") {
+        alert("The payer field is empty!");
+        return;
+      } else if (payCopy.length > 50) {
+        alert("Apologies. The 'payer' field has a 50 character limit, please shorten...");
+        return;
+      }
+
+      let num = parseInt(pointsCopy);
+      if (isNaN(num) == false) { //Points check for valid int that is positive
+        if (num <= 0) {
+          alert("Please enter a number larger than 0!");
+          return;
+        }
+      } else {
+        alert("Please enter a number!");
+        return;
+      }
+
+      postPoints({payer: payCopy, points: num});
     }
 
     return (
       <>
-        <div>So how bout that weather, Fetch person looking over this?</div>
+        <h1>Cameron Davis's Fetch Coding Exercise</h1>
+        <div className="mb-3">So how bout that weather, Fetch person looking over this?</div>
+        <h3>Overall Balance</h3>
         <div>
-            <div className="d-flex">
-              <p>Current Balance:  </p>
+            <div className="d-flex flex-row">
+              <p className="pr-3">Current Balance: {JSON.stringify(balance)}</p>
               <button onClick={refreshBalance}>Refresh</button>
             </div>
-            <div>{JSON.stringify(balance)}</div>
         </div>
+        <h3 className="mt-3">Pay System</h3>
         <div className="d-flex">
           <p>Default Payment - 5000</p>
           <button onClick={defaultPay}>Default Pay</button>
         </div>
         <div className="d-flex">
-        <input onChange={handleCustomVal} type="text" />
-        <button onClick={customPay}>Custom Pay</button>
+          <p>Custom Payment -</p>
+          <input onChange={handleCustomVal} type="text" placeholder="points:"/>
+          <button onClick={customPay}>Custom Pay</button>
         </div>
+        <h3 className="mt-3">New Transaction</h3>
         <div className="d-flex">
-        <input onChange={handleNewPayer} type="text" />
-        <input onChange={handleNewPoints} type="text" />
-        <button onClick={addTransaction}>Add Transaction</button>
+          <input onChange={handleNewPayer} type="text" placeholder="payer:" />
+          <input onChange={handleNewPoints} type="text" placeholder="points:"/>
+          <button onClick={addTransaction}>Add Transaction</button>
         </div>
       </>
     );
