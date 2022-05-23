@@ -4,8 +4,8 @@ import Fetch from './fetch';
 var connection = mysql.createConnection({
     host: 'localhost',
     port: 3306,
-    user: 'root', //replace this
-    password: 'rootPassword', //replace this
+    user: 'root', //replace this with MySQL username
+    password: 'rootPassword', //replace this with MySQL password
     database: 'fetchuser'
 });
 
